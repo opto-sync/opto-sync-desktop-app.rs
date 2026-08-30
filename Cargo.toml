@@ -2,6 +2,7 @@
     name = "opto-sync-desktop-app"
     version = "0.1.0"
     edition = "2021"
+    rust-version = "1.88"
     license = "MIT"
     description = "Native Rust desktop app for Opto Sync"
     repository = "https://github.com/opto-sync/opto-sync-desktop-app.rs"
@@ -22,4 +23,7 @@
 [lints.rust]
 unsafe_code = "forbid"
 
-
+[lints.clippy]
+enum_glob_use = "deny"
+match_wildcard_for_single_variants = "deny"
+wildcard_enum_match_arm = "deny"

@@ -3,10 +3,9 @@
 /build
 /.dart_tool
 /coverage
+/_apalache-out
 .DS_Store
 .env
 .env.*
 !.env.example
 *.sqlite
-Cargo.lock
-
