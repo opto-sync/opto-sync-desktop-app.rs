@@ -1,0 +1,74 @@
+name: Formal lifecycle and exhaustiveness
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: formal-lifecycle-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rust:
+    name: Rust reducer and exhaustive matches
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@39b0b3842c7e8bbf6904c0bfc3d9006fdd4dc4e0 # 1.88.0
+        with:
+          components: rustfmt, clippy
+
+      - name: Format, lint, and test
+        run: |
+          set -euo pipefail
+          cargo fmt --all -- --check
+          cargo clippy --all-targets -- -D warnings
+          cargo test --all-targets
+
+  quint:
+    name: Quint finite-model verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22.16.0'
+
+      - uses: actions/setup-java@d7793b545071e98d581d3bf084a51c3213318a07 # v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Verify canonical model provenance
+        run: |
+          printf '%s  %s\n' \
+            c6cb526867779178e6fab89f1333113576764e3760c31314475d9b17207cd00d \
+            formal/mobile_desktop_lifecycle.qnt | sha256sum --check --strict
+
+      - name: Type-check, simulate, and exhaustively verify
+        run: |
+          set -euo pipefail
+          quint='npx --yes --package=@informalsystems/quint@0.32.0 quint'
+          $quint typecheck formal/mobile_desktop_lifecycle.qnt
+          $quint run formal/mobile_desktop_lifecycle.qnt \
+            --main=mobile_desktop_lifecycle --init=init --step=step \
+            --backend=rust --max-samples=10000 --max-steps=30 \
+            --invariants lifecycle_safety \
+            --witnesses close_during_acquire_reached trailing_wake_reached cancellation_reached
+          $quint verify formal/mobile_desktop_lifecycle.qnt \
+            --main=mobile_desktop_lifecycle --init=init --step=step \
+            --backend=tlc --invariants lifecycle_safety \
+            --temporal=acquisition_eventually_settles,running_cycle_eventually_settles,close_eventually_terminates
