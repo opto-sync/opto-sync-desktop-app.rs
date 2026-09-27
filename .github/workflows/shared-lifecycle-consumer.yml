@@ -47,19 +47,13 @@ jobs:
       - name: Set up Rust 1.88
         uses: dtolnay/rust-toolchain@39b0b3842c7e8bbf6904c0bfc3d9006fdd4dc4e0 # 1.88.0
         with:
-          toolchain: 1.88.0
           components: rustfmt, clippy
 
-      - name: Resolve shared package and test
+      - name: Resolve locked shared package and test
         shell: bash
         run: |
           set -euo pipefail
           cargo fmt -- --check
-          cargo clippy --all-targets -- -D warnings
-          cargo test --all-targets
-
-      - name: Show required lockfile update
-        if: ${{ always() && runner.os == 'Linux' }}
-        shell: bash
-        run: |
-          git diff -- Cargo.lock || true
+          cargo clippy --locked --all-targets -- -D warnings
+          cargo test --locked --all-targets
+          git diff --exit-code -- Cargo.lock
