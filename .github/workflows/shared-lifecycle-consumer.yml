@@ -1,0 +1,59 @@
+name: Shared lifecycle consumer
+
+on:
+  pull_request:
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "src/app.rs"
+      - "src/ui.rs"
+      - "src/lib.rs"
+      - "src/lifecycle.rs"
+      - ".github/workflows/shared-lifecycle-consumer.yml"
+  push:
+    branches: [main]
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "src/app.rs"
+      - "src/ui.rs"
+      - "src/lib.rs"
+      - "src/lifecycle.rs"
+      - ".github/workflows/shared-lifecycle-consumer.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: shared-lifecycle-consumer-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rust:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-14, windows-2022]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Set up Rust 1.88
+        uses: dtolnay/rust-toolchain@39b0b3842c7e8bbf6904c0bfc3d9006fdd4dc4e0 # 1.88.0
+        with:
+          components: rustfmt, clippy
+
+      - name: Resolve locked shared package and test
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo fmt -- --check
+          cargo clippy --locked --all-targets -- -D warnings
+          cargo test --locked --all-targets
+          git diff --exit-code -- Cargo.lock

@@ -1,11 +1,12 @@
 #![forbid(unsafe_code)]
 
 use crate::config::DesktopConfig;
-use crate::lifecycle::{
-    SyncLifecycleCommand, SyncLifecycleEvent, SyncLifecycleMachine, TransitionDisposition,
-};
 use crate::net;
 use crate::ui;
+use opto_sync_desktop_fenced_lifecycle::{
+    SyncLifecycleCommand, SyncLifecycleEvent, SyncLifecycleMachine, SyncLifecycleTransition,
+    TransitionDisposition,
+};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DesktopAppError {
@@ -48,7 +49,7 @@ impl DesktopApp {
         }
     }
 
-    /// Execute one probe only while the lifecycle machine owns a permit.
+    /// Execute one probe only while the shared lifecycle machine owns a permit.
     pub fn run_once(&self) -> Result<String, DesktopAppError> {
         let mut lifecycle = SyncLifecycleMachine::default();
         apply(
@@ -84,7 +85,7 @@ impl DesktopApp {
 fn apply(
     lifecycle: &mut SyncLifecycleMachine,
     command: SyncLifecycleCommand,
-) -> Result<crate::lifecycle::SyncLifecycleTransition, DesktopAppError> {
+) -> Result<SyncLifecycleTransition, DesktopAppError> {
     let decision = lifecycle.dispatch(command);
     if decision.applied() {
         Ok(decision)
@@ -102,7 +103,7 @@ mod tests {
     use crate::config::DesktopConfig;
 
     #[test]
-    fn run_once_uses_formal_lifecycle_path() {
+    fn run_once_uses_shared_generation_fenced_lifecycle() {
         let app = DesktopApp::new(DesktopConfig {
             api_base: "https://sync.invalid".to_owned(),
         });
